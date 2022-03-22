@@ -97,7 +97,66 @@ computeGraphIndices <- function (subInfo, new.threshold , zone = "all", g.streng
 # all graphs edges are built on distance matrix
 
 ######################## Random Scenario ########################
+# =================================================== #
+### random node removal complete ###
+computeRandomScenarioAll <- function (filenames, new.threshold, zones, habqual, dist.mat){   
+  require('igraph')
+  require('plyr')
+  
+  all.files <- lapply(1:length(filenames), function(s){
+    
+    s.mat <- computeConnectivityMatrix (subInfo = read.table(filenames[[s]]), zones, percentage = T, threshold = new.threshold)
+    
+    # add the attributes = distance (km)
+    s.mat <- ifelse(s.mat == 0, 0, 1) * dist.mat[which(habqual$scale!=0),which(habqual$scale!=0)]
+    nb.zones <- length(zones)
+    row.names(s.mat) <- c(1:nb.zones)
+    colnames(s.mat) <- c(1:nb.zones)
+    
+    random.all <- lapply(1:125, function(x){
+      
+      # start with complete graph
+      g <- graph_from_adjacency_matrix(t(s.mat), mode = c("directed"), weighted = T, diag = F)
+      nodes.id <- row.names( as.data.frame( components(g, mode = "weak")$membership))
+      remove.order <- sample(nodes.id, length(nodes.id), replace = F)
+      
+      # compute metrics for baseline graph
+      nodes.rm <- data.frame(#dens = round(edge_density(g), digits = 2), 
+        #reciproc = round(reciprocity(g), digits = 2),
+        #trans = round(transitivity(g), digits = 2),
+        #diam = as.integer(diameter(g, directed = T)),
+        comp.no = as.integer(components(g, mode = "weak")$no),
+        comp.size = round(max(components(g, mode = "weak")$csize)/nb.zones, digits = 2))
+      for (i in 1:length(remove.order)){
+        # node to remove
+        g <- delete.vertices(g, remove.order[1] )
+        new.nodes.rm <- data.frame( #dens = round(edge_density(g), digits = 2), 
+          #reciproc = round(reciprocity(g), digits = 2),
+          #trans = round(transitivity(g), digits = 2),
+          #diam = as.integer(diameter(g, directed = T)),
+          comp.no = as.integer(components(g, mode = "weak")$no),
+          comp.size = round(max(components(g, mode = "weak")$csize)/nb.zones, digits = 2))
+        nodes.rm <- rbind(nodes.rm, new.nodes.rm)
+        nodes.id <- row.names( as.data.frame( components(g, mode = "weak")$membership))
+        remove.order <- sample(nodes.id, length(nodes.id), replace = F)
+      }
+      nodes.rm[nodes.rm=="NaN"] <- 1
+      nodes.rm.random <- nodes.rm[1:(nb.zones),]
+      x <- nodes.rm.random
+    })
+    
+    nodes.rm.random <- data.frame(aaply(laply(random.all, as.matrix), c(2, 3), mean))
+    #nodes.rm.random <- do.call(rbind, random.all)
+    s <- nodes.rm.random
+    
+  }) 
+  #nodes.rm.random <- data.frame(aaply(laply(all.files, as.matrix), c(2, 3), mean))
+  nodes.rm.random <- do.call(rbind, all.files)
+  return(nodes.rm.random)
+}
 
+# =================================================== #
+# returns averages over all simulated events (N = 27) #
 computeRandomScenario <- function (filenames, new.threshold, zones, habqual, dist.mat){   
   # filesnames: vector containing all path and name of files with raw dispersal data
   # new.threshols: connectivity threshold, as minimum flux of particle, below which = 0
