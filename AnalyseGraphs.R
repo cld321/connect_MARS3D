@@ -7,7 +7,7 @@ library("igraph")
 # DISTANCE MATRIX ##################################
 # dist.mat needed in node removal scenarios
 
-# read any subInfo to extract geographical coordonates of zones, them remove file
+# read any subInfo to extract geographical coordonates of zones, then remove file
 subInfo <- read.table("Output60zones/subInfo2012_May_4w.txt", header=T)
 df.points <- aggregate(subInfo [,c('lat','lon')],subInfo[,'zone',drop=F], mean,na.rm=T)[1:60,]
 # assign the right order 
@@ -34,8 +34,8 @@ reefs <- which(read.table("Data/scale_habitat_quality.txt", header=T)$scale != 0
 # GRAPH$local $global ######################################
 # read all subInfo file with dispersal values
 # creates graph based on dispersal matrix and distance between connected zones
-# calculate graphs metrics local=for each zone, global=for each grap/simulation
-# threshold = ( 1, 0.5, 0.1, 0.05, 0.01, 0.005, 0.001)
+# calculate graphs metrics local=for each zone, global=for each graph/simulation
+# thresholds = ( 1, 0.5, 0.1, 0.05, 0.01, 0.005, 0.001)
 filenames <- Sys.glob( path = "Output60zones/subInfo*", dirmark=T)
 
 for (i in 1:length(filenames)){
@@ -57,11 +57,10 @@ for (i in 1:length(filenames)){
 
 
 # PLD and threshold ##########################################################
-# calculate graphs metrics local=for each zone, global=for each grap/simulation
-# threshold = ( 1, 0.5, 0.1, 0.05, 0.01, 0.005, 0.001)
+# calculate graphs metrics local=for each zone, global=for each graph/simulation
 filenames <- list.files(path="Output60zones/", pattern="subInfo+.*_4w*")
 filenames <- paste( "Output60zones/", filenames, sep="")
-
+# test full range or a selection of threshold values
 # the entire range tested
 all.threshold = seq( from = 7, to = 0.001, by = -0.01)
 # zoom on 0:1 range
@@ -86,7 +85,7 @@ for (t in 1:length(all.threshold)) {
 }
 
 # repeat the above for each pld
-# bind data from the three plds one by one
+# rename data from the three plds one by one
 th3 <- pld.threshold # 3w
 th4 <- pld.threshold # 4w
 th6 <- pld.threshold # 6w
@@ -111,9 +110,9 @@ colnames(sd.mat)<-c(1:31)
 
 sd.mat <- sd.mat / 27 # 27 simulations, hence 27 times max one connection can apear
 
-sd.graph <-graph_from_adjacency_matrix(t(sd.mat), mode = c("directed"), weighted = T, diag = F)
+sd.graph <- graph_from_adjacency_matrix(t(sd.mat), mode = c("directed"), weighted = T, diag = F)
 
-lo<-cbind(habqual[,"lon"],habqual[,"lat"]) 
+lo <- cbind(habqual[,"lon"],habqual[,"lat"]) 
 vertex_attr(sd.graph) <- list(index=row.names(sd.mat) , value=habqual[reefs,"scale"])
 
 # use a high threshold (= 0.5)
@@ -143,7 +142,8 @@ th.mat[th.mat < 0.01] <- 0
 
 
 # SCENARIOS OF NODE REMOVAL########################
-# requires reefs, dist.mat, habqual
+# requires filenames, dist.mat, habqual, reefs, new.threshold
+#
 filenames <- list.files(path="Output60zones/", pattern="subInfo+.*_4w*")
 # add path to the file names subInfo
 filenames <- paste( "Output60zones/", filenames, sep="")
@@ -151,16 +151,20 @@ filenames <- paste( "Output60zones/", filenames, sep="")
 library(plyr)
 # requires dist.mat, habqual #
 dist.mat <- read.table("distanceMatrix.txt") 
-habqual<- read.table("scale_habitat_quality.txt", header=T)
+habqual<- read.table("Data/scale_habitat_quality.txt", header=T)
+reefs <- which(habqual$scale != 0)
 new.threshold <- 0.01
-reefs <- which(read.table("Data/scale_habitat_quality.txt", header=T)$scale != 0)
 
 # SCENARIOS #
-# for average scores per node
+# for averaged scores (over all spawning events) per node
 nodes.rm.random = computeRandomScenario(filenames, new.threshold, zones = reefs, habqual, dist.mat)
+# low betweenness centrality (BC)
 nodes.rm.weak = computeWeakScenario(filenames, new.threshold, zones = reefs, habqual, dist.mat)
+# high betweenness centrality (BC)
 nodes.rm.strong = computeStrongScenario(filenames, new.threshold, zones = reefs, habqual, dist.mat)
+# smaller reefs first
 nodes.rm.weakHab = computeWeakHabScenario(filenames, new.threshold, zones = reefs, habqual, dist.mat)
+# larger reefs first
 nodes.rm.strongHab = computeStrongHabScenario(filenames, new.threshold, zones = reefs, habqual, dist.mat)
 
 df <- rbind(nodes.rm.random[1:2], nodes.rm.weak, nodes.rm.strong, nodes.rm.weakHab, nodes.rm.strongHab)
@@ -170,6 +174,6 @@ df$scenario <- c(rep("Random", 31),
 df$node <- rep(c(1:31), 5)
 
 
-# for random scenario, all data points
-# to plot boxplots
+# Random scenario of node removal, containing all data points
+# used in boxplots Figure 4, Figure S4
 random.all <- computeRandomScenarioAll(filenames, new.threshold, zones=reefs, habqual, dist.mat)
