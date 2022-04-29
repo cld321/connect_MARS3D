@@ -21,8 +21,8 @@ computeConnectivityMatrix <- function (subInfo, zones, threshold, percentage = T
     mat.connect <- mat.connect [, 2:ncol(mat.connect) ] [zones,zones] #eliminate first column containing the names of sinkzones
     #mat.connect = true connectivity matrix
     #mat.percent = connectivity matrix expressed in percentage
-    #subInfo extended, includes on last row total masse of each traceur, extracted in masseTotal
-    #threshold default: density<1/10^10 = zero
+    #subInfo extended, includes on last row total concentration of each traceur at release, extracted in masseTotal
+    
     if (percentage) {
         #convert in percentage
         masseTotal <-as.numeric( subInfo[nrow(subInfo), colnames(subInfo)[grep ('Traceur',colnames(subInfo))]]) [zones]
